@@ -1,0 +1,214 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: 'Space Grotesk', sans-serif;
+  --font-display: 'Press Start 2P', cursive;
+
+  /* Synthwave / Retro Arcade Palette */
+  --background: 240 100% 4%; /* Deep space blue */
+  --foreground: 0 0% 100%;
+  
+  --card: 240 50% 10%;
+  --card-foreground: 0 0% 100%;
+  
+  --popover: 240 50% 10%;
+  --popover-foreground: 0 0% 100%;
+  
+  --primary: 300 100% 50%; /* Neon Magenta */
+  --primary-foreground: 0 0% 100%;
+  
+  --secondary: 180 100% 50%; /* Neon Cyan */
+  --secondary-foreground: 240 100% 4%;
+  
+  --muted: 240 30% 20%;
+  --muted-foreground: 240 20% 70%;
+  
+  --accent: 60 100% 50%; /* Neon Yellow */
+  --accent-foreground: 240 100% 4%;
+  
+  --destructive: 0 100% 50%; /* Neon Red */
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 300 100% 50%;
+  --input: 240 40% 15%;
+  --ring: 300 100% 50%;
+
+  --radius: 0.5rem;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased overflow-hidden select-none;
+    font-family: var(--font-sans);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    @apply font-normal tracking-tight;
+  }
+}
+
+@layer utilities {
+  .text-glow-primary {
+    text-shadow: 0 0 10px hsl(var(--primary)), 0 0 20px hsl(var(--primary));
+  }
+  .text-glow-secondary {
+    text-shadow: 0 0 10px hsl(var(--secondary)), 0 0 20px hsl(var(--secondary));
+  }
+  .box-glow-primary {
+    box-shadow: 0 0 15px hsl(var(--primary) / 0.5), inset 0 0 15px hsl(var(--primary) / 0.5);
+  }
+  .box-glow-secondary {
+    box-shadow: 0 0 15px hsl(var(--secondary) / 0.5), inset 0 0 15px hsl(var(--secondary) / 0.5);
+  }
+  body, #root, main, .bg-grid-pattern {
+    background-image: url('./assets/portada.jpg') !important; /* Ajusta 'portada.jpg' al nombre exacto de tu archivo */
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+  }
+}
+
+/* Custom Scanline Overlay */
+.scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.2) 50%,
+    rgba(0, 0, 0, 0.2)
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.6;
+}
+
+/* Vignette Effect */
+.vignette {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle, transparent 50%, rgba(0, 0, 0, 0.8) 150%);
+  pointer-events: none;
+  z-index: 49;
+}
+
+@keyframes game-over-backdrop-enter {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(6px); }
+}
+
+@keyframes game-over-zoom-enter {
+  0% { opacity: 0; transform: scale(0.35) rotate(-4deg); }
+  70% { opacity: 1; transform: scale(1.06) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+.game-over-backdrop {
+  animation: game-over-backdrop-enter 500ms ease-out both;
+}
+
+.game-over-zoom {
+  animation: game-over-zoom-enter 650ms cubic-bezier(0.2, 0.85, 0.25, 1.2) both;
+  transform-origin: center;
+}
+
+@keyframes level-complete-enter {
+  from { opacity: 0; transform: scale(0.72) translateY(24px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes level-complete-rays {
+  from { transform: rotate(0deg) scale(0.8); opacity: 0.12; }
+  to { transform: rotate(360deg) scale(1.4); opacity: 0.3; }
+}
+
+@keyframes level-complete-progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.level-complete-card {
+  animation: level-complete-enter 600ms cubic-bezier(0.2, 0.85, 0.25, 1.2) both;
+}
+
+.level-complete-rays {
+  background: conic-gradient(from 0deg, transparent, rgba(34, 211, 238, 0.16), transparent 25%);
+  animation: level-complete-rays 4s linear infinite;
+}
+
+.level-complete-progress {
+  animation: level-complete-progress 2.8s linear both;
+}
+
+@keyframes boss-intro-enter {
+  0% { opacity: 0; transform: scaleX(0.15); filter: brightness(2); }
+  35% { opacity: 1; transform: scaleX(1.04); filter: brightness(1.5); }
+  100% { opacity: 1; transform: scaleX(1); filter: brightness(1); }
+}
+
+@keyframes boss-intro-scan {
+  from { background-position-y: 0; }
+  to { background-position-y: 8px; }
+}
+
+@keyframes boss-intro-progress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes boss-warning-flash {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+}
+
+.boss-intro-card {
+  animation: boss-intro-enter 700ms steps(8, end) both;
+}
+
+.boss-intro-scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    rgba(248, 113, 113, 0.1) 4px
+  );
+  animation: boss-intro-scan 140ms linear infinite;
+}
+
+.boss-intro-progress {
+  animation: boss-intro-progress 2.6s linear both;
+}
+
+.boss-attack-warning > div {
+  animation: boss-warning-flash 180ms steps(2, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-over-backdrop,
+  .game-over-zoom,
+  .level-complete-card,
+  .level-complete-rays,
+  .level-complete-progress {
+    animation-duration: 1ms;
+  }
+  .boss-intro-card,
+  .boss-intro-scanlines,
+  .boss-intro-progress,
+  .boss-attack-warning > div {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+  }
+}

@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: mi-primer-juego
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    preDeployCommand: npm run db:push
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: APP_URL
+        value: https://mi-primer-juego.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mi-primer-juego-db
+          property: connectionString
+
+databases:
+  - name: mi-primer-juego-db
+    databaseName: mi_primer_juego
+    user: mi_primer_juego
+    plan: free

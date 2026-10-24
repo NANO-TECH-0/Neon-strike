@@ -1,0 +1,17 @@
+CODIGO COMPLETO DEL VIDEOJUEGO
+
+Lenguaje principal del juego: TypeScript (.ts).
+La interfaz utiliza TypeScript con React y JSX (.tsx). Los estilos están escritos en CSS (.css).
+TypeScript es un lenguaje basado en JavaScript que agrega tipos y se transforma a JavaScript para ejecutarse en el navegador o en Node.js.
+
+Archivo central del motor: client/src/game/engine.ts
+
+Contenido del paquete:
+- client/: interfaz, pantalla del juego, motor Canvas, componentes y estilos.
+- server/: servidor y rutas de la aplicación.
+- shared/: tipos y definiciones compartidas.
+- script/: scripts de compilación.
+- Archivos de configuración y manifiestos de dependencias (package.json y package-lock.json).
+
+No se incluyen node_modules, historial Git ni archivos locales o secretos del entorno.
+Para instalar dependencias y ejecutar, desde la carpeta del proyecto: npm install y luego npm run dev.
