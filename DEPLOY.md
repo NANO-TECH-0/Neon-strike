@@ -2,7 +2,7 @@
 
 GitHub guarda el código y ejecuta las comprobaciones automáticas; Render ejecuta el servidor, la API y PostgreSQL. GitHub Pages no sirve para este proyecto porque no puede ejecutar el backend ni guardar las puntuaciones en la base de datos.
 
-El proyecto incluye una configuración para publicarlo en Render con una aplicación web y una base de datos PostgreSQL.
+El proyecto incluye una configuración para publicarlo en Render con una aplicación web y una base de datos PostgreSQL. En el plan gratuito, el servicio prepara el esquema de la base de datos al arrancar, ya que Render no permite ejecutar un comando de predespliegue en ese plan.
 
 1. Sube el proyecto a un repositorio privado de GitHub. No subas `.env` ni compartas sus valores; ya está excluido por `.gitignore`.
 2. En GitHub, espera a que la acción **Verify** termine correctamente. En cada cambio comprobará los tipos e intentará generar la versión de producción.
