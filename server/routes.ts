@@ -1,11 +1,12 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { randomBytes } from "crypto";
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "crypto";
+import { promisify } from "util";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { Country, State, City } from "country-state-city";
 import { storage } from "./storage";
-import type { OAuthProfile, ScoreLocation } from "./storage";
+import type { ScoreLocation } from "./storage";
 import { pool } from "./db";
 import { api } from "@shared/routes";
 import { z } from "zod";
@@ -13,12 +14,17 @@ import { z } from "zod";
 declare module "express-session" {
   interface SessionData {
     userId?: string;
-    oauthState?: string;
-    oauthProvider?: "google" | "facebook";
   }
 }
 
 const PgSessionStore = connectPgSimple(session);
+const scrypt = promisify(scryptCallback);
+const passwordHashBytes = 64;
+const authInputSchema = z.object({
+  username: z.string().trim().regex(/^[a-zA-Z0-9_]{3,24}$/),
+  password: z.string().min(8).max(128)
+});
+const authAttempts = new Map<string, { count: number; resetAt: number }>();
 const locationInputSchema = z.object({
   countryCode: z.string().length(2),
   regionCode: z.string().min(1).max(10),
@@ -42,71 +48,46 @@ const progressionSchema = z.object({
   progressionStartedAt: z.string().max(40)
 });
 
-function getAppUrl(req: Express["request"]): string {
-  const configured = process.env.APP_URL;
-  return (configured || `${req.protocol}://${req.get("host")}`).replace(/\/+$/, "");
+async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString("base64url");
+  const derivedKey = await scrypt(password, salt, passwordHashBytes) as Buffer;
+  return `scrypt:${salt}:${derivedKey.toString("base64url")}`;
 }
 
-function providerSettings(provider: "google" | "facebook") {
-  const prefix = provider === "google" ? "GOOGLE" : "FACEBOOK";
-  const clientId = process.env[`${prefix}_CLIENT_ID`];
-  const clientSecret = process.env[`${prefix}_CLIENT_SECRET`];
-  return clientId && clientSecret ? { clientId, clientSecret } : null;
+async function verifyPassword(password: string, storedHash: string | null): Promise<boolean> {
+  if (!storedHash) return false;
+  const [algorithm, salt, encodedKey] = storedHash.split(":");
+  if (algorithm !== "scrypt" || !salt || !encodedKey) return false;
+  const expectedKey = Buffer.from(encodedKey, "base64url");
+  if (expectedKey.length !== passwordHashBytes) return false;
+  const actualKey = await scrypt(password, salt, passwordHashBytes) as Buffer;
+  return timingSafeEqual(actualKey, expectedKey);
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-async function exchangeOAuthCode(
-  provider: "google" | "facebook",
-  code: string,
-  redirectUri: string,
-  clientId: string,
-  clientSecret: string
-): Promise<OAuthProfile> {
-  const tokenUrl = provider === "google"
-    ? "https://oauth2.googleapis.com/token"
-    : "https://graph.facebook.com/v23.0/oauth/access_token";
-  const tokenResponse = await fetch(tokenUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      code,
-      redirect_uri: redirectUri,
-      grant_type: "authorization_code"
-    })
-  });
-  if (!tokenResponse.ok) throw new Error(`${provider} token exchange failed (${tokenResponse.status}).`);
-  const tokenBody: unknown = await tokenResponse.json();
-  if (!isObject(tokenBody) || typeof tokenBody.access_token !== "string") {
-    throw new Error(`${provider} returned an invalid access token response.`);
+function isRateLimited(req: Express["request"], action: string): boolean {
+  const now = Date.now();
+  for (const [key, attempt] of Array.from(authAttempts.entries())) {
+    if (attempt.resetAt <= now) authAttempts.delete(key);
   }
-
-  const userInfoUrl = provider === "google"
-    ? "https://openidconnect.googleapis.com/v1/userinfo"
-    : "https://graph.facebook.com/me?fields=id,name,email,picture.type(large)";
-  const userInfoResponse = await fetch(userInfoUrl, {
-    headers: { Authorization: `Bearer ${tokenBody.access_token}` }
-  });
-  if (!userInfoResponse.ok) throw new Error(`${provider} profile request failed (${userInfoResponse.status}).`);
-  const userInfo: unknown = await userInfoResponse.json();
-  if (!isObject(userInfo) || typeof userInfo.sub !== "string" && typeof userInfo.id !== "string") {
-    throw new Error(`${provider} returned an invalid user profile.`);
+  const key = `${action}:${req.ip}`;
+  const current = authAttempts.get(key);
+  if (current && current.resetAt > now && current.count >= 10) return true;
+  if (current && current.resetAt > now) {
+    current.count += 1;
+  } else {
+    authAttempts.set(key, { count: 1, resetAt: now + 15 * 60 * 1000 });
   }
-  const picture = isObject(userInfo.picture) && typeof userInfo.picture.data === "object" && userInfo.picture.data !== null
-    ? (userInfo.picture.data as Record<string, unknown>).url
-    : userInfo.picture;
-  const providerUserId = provider === "google" ? userInfo.sub : userInfo.id;
-  return {
-    provider,
-    providerUserId: providerUserId as string,
-    displayName: typeof userInfo.name === "string" ? userInfo.name.slice(0, 100) : `${provider} player`,
-    email: typeof userInfo.email === "string" ? userInfo.email.slice(0, 254) : null,
-    avatarUrl: typeof picture === "string" ? picture.slice(0, 2048) : null
-  };
+  return false;
+}
+
+async function establishSession(req: Express["request"], userId: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    req.session.regenerate(error => error ? reject(error) : resolve());
+  });
+  req.session.userId = userId;
+  await new Promise<void>((resolve, reject) => {
+    req.session.save(error => error ? reject(error) : resolve());
+  });
 }
 
 export async function registerRoutes(
@@ -132,13 +113,6 @@ export async function registerRoutes(
     }
   }));
 
-  app.get("/api/auth/providers", (_req, res) => {
-    res.json({
-      google: Boolean(providerSettings("google")),
-      facebook: Boolean(providerSettings("facebook"))
-    });
-  });
-
   app.get("/api/auth/me", async (req, res) => {
     if (!req.session.userId) return res.json({ user: null });
     const user = await storage.getUserById(req.session.userId);
@@ -150,9 +124,9 @@ export async function registerRoutes(
       user: {
         id: user.id,
         displayName: user.displayName,
-        email: user.email,
-        avatarUrl: user.avatarUrl,
-        provider: user.provider,
+        email: null,
+        avatarUrl: null,
+        provider: "password",
         countryCode: user.countryCode,
         countryName: user.countryName,
         regionCode: user.regionCode,
@@ -163,61 +137,43 @@ export async function registerRoutes(
     });
   });
 
-  for (const provider of ["google", "facebook"] as const) {
-    app.get(`/api/auth/${provider}`, (req, res) => {
-      const settings = providerSettings(provider);
-      if (!settings) {
-        return res.status(503).json({ message: `${provider} sign-in is not configured on this server.` });
+  app.post("/api/auth/register", async (req, res) => {
+    if (isRateLimited(req, "register")) {
+      return res.status(429).json({ message: "Demasiados intentos. Espera 15 minutos y vuelve a intentarlo." });
+    }
+    const parsed = authInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Usa un usuario de 3 a 24 letras, números o guiones bajos y una contraseña de 8 a 128 caracteres." });
+    }
+    const username = parsed.data.username.toLowerCase();
+    try {
+      const passwordHash = await hashPassword(parsed.data.password);
+      const user = await storage.createPasswordUser(username, passwordHash);
+      await establishSession(req, user.id);
+      return res.status(201).json({ user: { id: user.id, displayName: user.displayName }, progression: user.progression });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
+        return res.status(409).json({ message: "Ese nombre de usuario ya está ocupado." });
       }
-      const state = randomBytes(32).toString("hex");
-      req.session.oauthState = state;
-      req.session.oauthProvider = provider;
-      const redirectUri = `${getAppUrl(req)}/api/auth/${provider}/callback`;
-      const params = new URLSearchParams({
-        client_id: settings.clientId,
-        redirect_uri: redirectUri,
-        response_type: "code",
-        state,
-        ...(provider === "google"
-          ? { scope: "openid email profile", access_type: "online" }
-          : { scope: "public_profile email" })
-      });
-      const authorizeUrl = provider === "google"
-        ? `https://accounts.google.com/o/oauth2/v2/auth?${params}`
-        : `https://www.facebook.com/v23.0/dialog/oauth?${params}`;
-      res.redirect(authorizeUrl);
-    });
+      throw error;
+    }
+  });
 
-    app.get(`/api/auth/${provider}/callback`, async (req, res) => {
-      const state = typeof req.query.state === "string" ? req.query.state : "";
-      const code = typeof req.query.code === "string" ? req.query.code : "";
-      const validState = Boolean(state && req.session.oauthState && state === req.session.oauthState &&
-        req.session.oauthProvider === provider);
-      delete req.session.oauthState;
-      delete req.session.oauthProvider;
-      if (!validState || !code) {
-        return res.redirect(`${getAppUrl(req)}/?authError=invalid_oauth_response`);
-      }
-      const settings = providerSettings(provider);
-      if (!settings) return res.redirect(`${getAppUrl(req)}/?authError=provider_not_configured`);
-      try {
-        const redirectUri = `${getAppUrl(req)}/api/auth/${provider}/callback`;
-        const profile = await exchangeOAuthCode(provider, code, redirectUri, settings.clientId, settings.clientSecret);
-        const user = await storage.findOrCreateOAuthUser(profile);
-        await new Promise<void>((resolve, reject) => {
-          req.session.regenerate(error => error ? reject(error) : resolve());
-        });
-        req.session.userId = user.id;
-        await new Promise<void>((resolve, reject) => {
-          req.session.save(error => error ? reject(error) : resolve());
-        });
-        res.redirect(getAppUrl(req));
-      } catch (error) {
-        console.error(`${provider} account sign-in failed.`, error);
-        res.redirect(`${getAppUrl(req)}/?authError=sign_in_failed`);
-      }
-    });
-  }
+  app.post("/api/auth/login", async (req, res) => {
+    if (isRateLimited(req, "login")) {
+      return res.status(429).json({ message: "Demasiados intentos. Espera 15 minutos y vuelve a intentarlo." });
+    }
+    const parsed = authInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Escribe un usuario válido y una contraseña de 8 a 128 caracteres." });
+    }
+    const user = await storage.getPasswordUser(parsed.data.username.toLowerCase());
+    if (!user || !await verifyPassword(parsed.data.password, user.passwordHash)) {
+      return res.status(401).json({ message: "Usuario o contraseña incorrectos." });
+    }
+    await establishSession(req, user.id);
+    return res.json({ user: { id: user.id, displayName: user.displayName }, progression: user.progression });
+  });
 
   app.post("/api/auth/logout", (req, res, next) => {
     req.session.destroy(error => {

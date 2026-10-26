@@ -2,14 +2,6 @@ import { db } from "./db";
 import { scores, users, type InsertScore, type Score, type User } from "@shared/schema";
 import { and, desc, eq } from "drizzle-orm";
 
-export interface OAuthProfile {
-  provider: "google" | "facebook";
-  providerUserId: string;
-  displayName: string;
-  email: string | null;
-  avatarUrl: string | null;
-}
-
 export interface ScoreLocation {
   countryCode: string;
   regionCode: string;
@@ -19,7 +11,8 @@ export interface ScoreLocation {
 export interface IStorage {
   getTopScores(location?: { scope: string; countryCode?: string; regionCode?: string; cityName?: string }, limit?: number): Promise<Score[]>;
   createScore(score: InsertScore, user?: User): Promise<Score>;
-  findOrCreateOAuthUser(profile: OAuthProfile): Promise<User>;
+  createPasswordUser(username: string, passwordHash: string): Promise<User>;
+  getPasswordUser(username: string): Promise<User | undefined>;
   getUserById(id: string): Promise<User | undefined>;
   updateUserLocation(userId: string, location: ScoreLocation, countryName: string, regionName: string): Promise<User>;
   saveUserProgression(userId: string, progression: Record<string, unknown>): Promise<User>;
@@ -58,20 +51,22 @@ export class DatabaseStorage implements IStorage {
     return score;
   }
 
-  async findOrCreateOAuthUser(profile: OAuthProfile): Promise<User> {
+  async createPasswordUser(username: string, passwordHash: string): Promise<User> {
     const [user] = await db.insert(users).values({
-      ...profile,
+      provider: "password",
+      providerUserId: username,
+      passwordHash,
+      displayName: username,
       progression: {},
       updatedAt: new Date()
-    }).onConflictDoUpdate({
-      target: [users.provider, users.providerUserId],
-      set: {
-        displayName: profile.displayName,
-        email: profile.email,
-        avatarUrl: profile.avatarUrl,
-        updatedAt: new Date()
-      }
     }).returning();
+    return user;
+  }
+
+  async getPasswordUser(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users)
+      .where(and(eq(users.provider, "password"), eq(users.providerUserId, username)))
+      .limit(1);
     return user;
   }
 
