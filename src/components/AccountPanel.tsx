@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Check, Facebook, Loader2, LogOut, UserRound } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Check, Loader2, LogIn, LogOut, UserRound } from "lucide-react";
 import { LocationSelector, type LocationSelection } from "@/components/LocationSelector";
 import {
   mergeAccountProgression,
@@ -12,7 +12,7 @@ interface AccountUser {
   displayName: string;
   email: string | null;
   avatarUrl: string | null;
-  provider: "google" | "facebook";
+  provider: "password";
   countryCode: string | null;
   countryName: string | null;
   regionCode: string | null;
@@ -26,39 +26,24 @@ interface AccountPanelProps {
   onUserChange: (user: AccountUser | null) => void;
 }
 
-interface Providers {
-  google: boolean;
-  facebook: boolean;
-}
-
 export function AccountPanel({ progression, onProgressionChange, onUserChange }: AccountPanelProps) {
   const [user, setUser] = useState<AccountUser | null>(null);
-  const [providers, setProviders] = useState<Providers>({ google: false, facebook: false });
   const [loading, setLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<"login" | "register">("register");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
   const [location, setLocation] = useState<LocationSelection | null>(null);
   const [savingLocation, setSavingLocation] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    const authError = new URLSearchParams(window.location.search).get("authError");
-    if (authError) {
-      setError(authError === "provider_not_configured"
-        ? "Ese proveedor no está configurado todavía."
-        : "No se pudo iniciar sesión. Inténtalo otra vez.");
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-
-    Promise.all([
-      fetch("/api/auth/providers", { credentials: "include" }),
-      fetch("/api/auth/me", { credentials: "include" })
-    ]).then(async ([providersResponse, accountResponse]) => {
-      if (!providersResponse.ok || !accountResponse.ok) {
+    fetch("/api/auth/me", { credentials: "include" }).then(async accountResponse => {
+      if (!accountResponse.ok) {
         throw new Error("No se pudo comprobar la cuenta.");
       }
-      const available = await providersResponse.json() as Providers;
       const account = await accountResponse.json() as { user: AccountUser | null; progression?: unknown };
-      setProviders(available);
       if (account.user) {
         const merged = mergeAccountProgression(progression, account.progression);
         saveProgression(merged);
@@ -156,20 +141,50 @@ export function AccountPanel({ progression, onProgressionChange, onUserChange }:
     }
   };
 
-  const socialButton = (provider: "google" | "facebook", enabled: boolean) => (
-    <a
-      href={enabled ? `/api/auth/${provider}` : undefined}
-      aria-disabled={!enabled}
-      className={`flex items-center justify-center gap-3 rounded-xl border px-4 py-3 font-semibold transition ${
-        enabled
-          ? "border-cyan-300/50 bg-slate-900 text-white hover:bg-cyan-900/40"
-          : "cursor-not-allowed border-slate-600 bg-slate-900/50 text-slate-500"
-      }`}
-    >
-      {provider === "google" ? <span className="font-bold text-lg">G</span> : <Facebook className="h-5 w-5" />}
-      {enabled ? `Continuar con ${provider === "google" ? "Google" : "Facebook"}` : `${provider === "google" ? "Google" : "Facebook"} no configurado`}
-    </a>
-  );
+  const authenticate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAuthBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(`/api/auth/${authMode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, password })
+      });
+      const body = await response.json() as {
+        message?: string;
+        user?: AccountUser;
+        progression?: unknown;
+      };
+      if (!response.ok) throw new Error(body.message || "No se pudo acceder a la cuenta.");
+      if (!body.user) throw new Error("El servidor no devolvió la cuenta iniciada.");
+      const accountUser: AccountUser = {
+        ...body.user,
+        email: null,
+        avatarUrl: null,
+        provider: "password",
+        countryCode: null,
+        countryName: null,
+        regionCode: null,
+        regionName: null,
+        cityName: null
+      };
+      const merged = mergeAccountProgression(progression, body.progression);
+      saveProgression(merged);
+      onProgressionChange(merged);
+      setUser(accountUser);
+      onUserChange(accountUser);
+      setPassword("");
+      setNotice(authMode === "register" ? "Cuenta creada. ¡Tu progreso ya se está guardando!" : "Sesión iniciada.");
+    } catch (authError) {
+      console.error("Could not authenticate player account.", authError);
+      setError(authError instanceof Error ? authError.message : "No se pudo acceder a la cuenta.");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
 
   return (
     <section className="w-full rounded-2xl border border-cyan-300/30 bg-slate-950/85 p-4 text-left sm:p-5">
@@ -190,7 +205,7 @@ export function AccountPanel({ progression, onProgressionChange, onUserChange }:
           ) : user ? (
             <p className="mt-1 truncate text-sm text-white">{user.displayName}</p>
           ) : (
-            <p className="mt-1 text-xs text-slate-400">Invitado · inicia sesión para sincronizar y competir.</p>
+            <p className="mt-1 text-xs text-slate-400">Crea una cuenta o inicia sesión para guardar tu progreso.</p>
           )}
         </div>
         {user && (
@@ -201,10 +216,56 @@ export function AccountPanel({ progression, onProgressionChange, onUserChange }:
       </div>
 
       {!loading && !user && (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {socialButton("google", providers.google)}
-          {socialButton("facebook", providers.facebook)}
-        </div>
+        <form onSubmit={authenticate} className="space-y-3">
+          <label className="block text-xs text-slate-300">
+            Usuario
+            <input
+              autoComplete="username"
+              required
+              minLength={3}
+              maxLength={24}
+              pattern="[A-Za-z0-9_]+"
+              value={username}
+              onChange={event => setUsername(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
+              placeholder="3–24 letras, números o _"
+            />
+          </label>
+          <label className="block text-xs text-slate-300">
+            Contraseña
+            <input
+              autoComplete={authMode === "register" ? "new-password" : "current-password"}
+              required
+              minLength={8}
+              maxLength={128}
+              type="password"
+              value={password}
+              onChange={event => setPassword(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
+              placeholder="Mínimo 8 caracteres"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={authBusy}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 py-3 text-sm font-bold text-white hover:bg-cyan-500 disabled:opacity-60"
+          >
+            {authBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+            {authMode === "register" ? "Crear cuenta" : "Iniciar sesión"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode(authMode === "register" ? "login" : "register");
+              setError("");
+              setNotice("");
+            }}
+            className="w-full text-center text-xs text-cyan-200 hover:underline"
+          >
+            {authMode === "register" ? "¿Ya tienes cuenta? Inicia sesión" : "¿No tienes cuenta? Regístrate"}
+          </button>
+          <p className="text-xs text-slate-400">El usuario solo puede usar letras, números y guion bajo. La contraseña debe tener al menos 8 caracteres.</p>
+        </form>
       )}
 
       {user && (
@@ -235,9 +296,6 @@ export function AccountPanel({ progression, onProgressionChange, onUserChange }:
 
       {error && <p role="alert" className="mt-3 text-xs text-red-300">{error}</p>}
       {notice && <p role="status" className="mt-3 text-xs text-emerald-200">{notice}</p>}
-      {!loading && !user && !providers.google && !providers.facebook && (
-        <p className="mt-3 text-xs text-amber-200">El administrador debe configurar credenciales OAuth en el servidor. El modo invitado sigue disponible.</p>
-      )}
     </section>
   );
 }
