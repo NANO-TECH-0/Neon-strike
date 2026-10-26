@@ -17,7 +17,7 @@ import {
   saveProgression,
   type GameProgression
 } from "@/game/progression";
-import { Coins, Trophy, Play, Wrench, UserRound } from "lucide-react";
+import { Coins, Trophy, Play, Wrench, UserRound, LogOut } from "lucide-react";
 
 type GameMode = "free" | "levels";
 type GameState = "MENU" | "PLAYING" | "BOSS_INTRO" | "LEVEL_COMPLETE" | "CAMPAIGN_COMPLETE" | "GAME_OVER";
@@ -65,6 +65,8 @@ export default function Home() {
   const [bossAttackWarning, setBossAttackWarning] = useState(false);
   const [progression, setProgression] = useState<GameProgression>(() => loadProgression());
   const [accountUser, setAccountUser] = useState<AccountUser | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [accountError, setAccountError] = useState("");
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -305,6 +307,25 @@ export default function Home() {
     if (user) setHasCompletedAccountStep(true);
   };
 
+  const signOut = async () => {
+    setSigningOut(true);
+    setAccountError("");
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+      if (!response.ok) throw new Error(`Sign out failed (${response.status}).`);
+      setAccountUser(null);
+      setHasCompletedAccountStep(false);
+    } catch (error) {
+      console.error("Could not sign out.", error);
+      setAccountError("No se pudo cerrar la sesión. Inténtalo de nuevo.");
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background">
       {/* Global scanline effect */}
@@ -398,9 +419,21 @@ export default function Home() {
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
               {accountUser ? (
-                <span className="rounded-full border border-cyan-300/30 bg-black/40 px-4 py-2 text-xs text-cyan-100">
-                  Cuenta: {accountUser.displayName}
-                </span>
+                <>
+                  <span className="rounded-full border border-cyan-300/30 bg-black/40 px-4 py-2 text-xs text-cyan-100">
+                    Cuenta: {accountUser.displayName}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    disabled={signingOut}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-600 px-4 py-2 text-xs text-slate-300 transition hover:border-red-400/60 hover:text-red-200 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    {signingOut ? "CERRANDO SESIÓN..." : "CERRAR SESIÓN"}
+                  </button>
+                  {accountError && <p role="alert" className="w-full text-xs text-red-300">{accountError}</p>}
+                </>
               ) : (
                 <button
                   type="button"
