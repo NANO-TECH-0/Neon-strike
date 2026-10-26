@@ -27,7 +27,7 @@ interface AccountUser {
   displayName: string;
   email: string | null;
   avatarUrl: string | null;
-  provider: "google" | "facebook";
+  provider: "password";
   countryCode: string | null;
   countryName: string | null;
   regionCode: string | null;
@@ -326,7 +326,7 @@ export default function Home() {
               NEON STRIKE
             </h1>
             <p className="mb-5 text-sm text-muted-foreground sm:text-base">
-              Crea tu cuenta o inicia sesión para guardar tu progreso y competir en los rankings.
+              Crea una cuenta con usuario y contraseña o continúa como invitado.
             </p>
             <AccountPanel
               progression={progression}
