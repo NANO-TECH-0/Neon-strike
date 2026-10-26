@@ -18,8 +18,8 @@ El juego sigue permitiendo jugar como invitado. Para activar el inicio de sesió
 
 1. Crea una aplicación OAuth para el juego en Google Cloud Console y otra en Meta for Developers.
 2. En la configuración de cada proveedor, registra estas URL de retorno:
-   - `https://mi-primer-juego.onrender.com/api/auth/google/callback`
-   - `https://mi-primer-juego.onrender.com/api/auth/facebook/callback`
+   - `https://mi-primer-juego-glzt.onrender.com/api/auth/google/callback`
+   - `https://mi-primer-juego-glzt.onrender.com/api/auth/facebook/callback`
 3. En **Render → mi-primer-juego → Environment**, configura `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_ID` y `FACEBOOK_CLIENT_SECRET` con los valores de tus aplicaciones. No los añadas al repositorio. `SESSION_SECRET` se genera automáticamente desde `render.yaml`.
 4. Despliega de nuevo. Los botones de cada proveedor aparecerán habilitados cuando sus credenciales estén configuradas.
 

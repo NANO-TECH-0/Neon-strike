@@ -11,13 +11,13 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: APP_URL
-        value: https://mi-primer-juego.onrender.com
+        value: https://mi-primer-juego-glzt.onrender.com
       - key: DATABASE_URL
         fromDatabase:
           name: mi-primer-juego-db
           property: connectionString
 
-databases:
+ databases:
   - name: mi-primer-juego-db
     databaseName: mi_primer_juego
     user: mi_primer_juego
