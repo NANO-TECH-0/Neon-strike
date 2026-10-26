@@ -17,7 +17,7 @@ services:
           name: mi-primer-juego-db
           property: connectionString
 
- databases:
+databases:
   - name: mi-primer-juego-db
     databaseName: mi_primer_juego
     user: mi_primer_juego
