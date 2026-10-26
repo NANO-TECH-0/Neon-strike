@@ -12,15 +12,8 @@ El proyecto incluye una configuración para publicarlo en Render con una aplicac
 
 La configuración usa los planes gratuitos de Render para facilitar una prueba. Pueden tener límites de disponibilidad y la base de datos gratuita puede ser temporal; revisa las condiciones vigentes de Render antes de depender de ella para conservar puntuaciones. Cada amigo jugará su propia partida; las puntuaciones se guardan en la tabla compartida.
 
-## Inicio de sesión con Google y Facebook
+## Cuentas de jugador
 
-El juego sigue permitiendo jugar como invitado. Para activar el inicio de sesión social:
-
-1. Crea una aplicación OAuth para el juego en Google Cloud Console y otra en Meta for Developers.
-2. En la configuración de cada proveedor, registra estas URL de retorno:
-   - `https://mi-primer-juego-glzt.onrender.com/api/auth/google/callback`
-   - `https://mi-primer-juego-glzt.onrender.com/api/auth/facebook/callback`
-3. En **Render → mi-primer-juego → Environment**, configura `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_ID` y `FACEBOOK_CLIENT_SECRET` con los valores de tus aplicaciones. No los añadas al repositorio. `SESSION_SECRET` se genera automáticamente desde `render.yaml`.
-4. Despliega de nuevo. Los botones de cada proveedor aparecerán habilitados cuando sus credenciales estén configuradas.
+Los jugadores pueden crear una cuenta con un nombre de usuario y una contraseña, o continuar como invitados. Los nombres de usuario tienen de 3 a 24 letras, números o guiones bajos y no distinguen entre mayúsculas y minúsculas. Las contraseñas deben tener entre 8 y 128 caracteres y se guardan como hashes scrypt; nunca se almacenan en texto legible. Por seguridad, limita los intentos de registro e inicio de sesión. No hay recuperación de contraseña, así que los jugadores deben guardar sus credenciales.
 
 La primera vez que un jugador inicia sesión, el juego combina el progreso local con el guardado en su cuenta. El jugador selecciona país, región y ciudad usando las listas desplegables; su puntuación se guarda con esa ubicación para los rankings nacional, regional y de ciudad. Las puntuaciones de invitados aparecen únicamente en el ranking global.
