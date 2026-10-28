@@ -4,6 +4,7 @@
  */
 
 import type { AttackId, GameProgressEvent, PlaneId, SkillId } from "./progression";
+import { playAttackSound, playSound, startMusic, stopMusic } from "./audio";
 
 type Position = { x: number; y: number };
 type Velocity = { vx: number; vy: number };
@@ -615,6 +616,8 @@ export class GameEngine {
 
   public start() {
     if (this.isRunning) return;
+    playSound("start");
+    startMusic();
     this.isRunning = true;
     this.score = 0;
     this.enemiesKilled = 0;
@@ -694,18 +697,21 @@ export class GameEngine {
 
   public stop() {
     this.isRunning = false;
+    stopMusic();
     cancelAnimationFrame(this.animationFrameId);
   }
 
   public pause() {
     if (!this.isRunning) return;
     this.isRunning = false;
+    stopMusic();
     cancelAnimationFrame(this.animationFrameId);
   }
 
   public resume() {
     if (this.isRunning) return;
     this.isRunning = true;
+    startMusic();
     this.lastTime = performance.now();
     this.animationFrameId = requestAnimationFrame((t) => this.loop(t));
   }
@@ -726,6 +732,7 @@ export class GameEngine {
   private takeDamage(particleColor: string = "white", damage = 20): boolean {
     // If invincible or shielded, ignore damage
     if (this.invincibilityTime > 0 || this.shieldActive) return false;
+    playSound("damage");
     this.lastDamageAmount = Math.min(this.health, damage);
     this.health = Math.max(0, this.health - damage);
     this.invincibilityTime = this.INVINCIBILITY_DURATION;
@@ -733,6 +740,8 @@ export class GameEngine {
     this.damageTextTimer = 1.5;
 
     if (this.health <= 0) {
+      playSound("death");
+      stopMusic();
       this.spawnParticles(this.player.x, this.player.y, "white", 40);
       this.spawnParticles(this.player.x, this.player.y, "red", 30);
       this.spawnParticles(this.player.x, this.player.y, "#ff9d2e", 24);
@@ -754,6 +763,7 @@ export class GameEngine {
   // Executed safely outside of any entity iteration loop
   private executeMegaBlast() {
     const BLAST_RADIUS = 400;
+    playSound("explosion");
 
     // 3 concentric shockwave rings
     this.shockwaves.push({ x: this.player.x, y: this.player.y, radius: 0, life: 1.8 });
@@ -803,6 +813,7 @@ export class GameEngine {
   }
 
   private explodeMeteorite(meteorite: Obstacle) {
+    playSound("meteor");
     this.shockwaves.push({ x: meteorite.x, y: meteorite.y, radius: 0, life: 0.6 });
     this.spawnParticles(meteorite.x, meteorite.y, "#ffb347", 18);
     this.spawnParticles(meteorite.x, meteorite.y, "#ed5938", 14);
@@ -833,9 +844,11 @@ export class GameEngine {
     this.shockwaves = [];
     this.nextPortalSpawn = 2;
     this.spawnParticles(this.player.x, this.player.y, "#63f7ff", 30);
+    playSound("teleport");
   }
 
   private beginPortalTransition(portal: Portal) {
+    playSound("portal");
     this.portalTransition = {
       elapsed: 0,
       duration: 1.4,
@@ -847,6 +860,7 @@ export class GameEngine {
   }
 
   private spawnBoss(isCampaignBoss = false) {
+    playSound("bossIntro");
     const angle = Math.random() * Math.PI * 2;
     const dist = Math.max(this.width, this.height) / 2 + 160;
     const level = this.bossCount + 1;
@@ -872,6 +886,7 @@ export class GameEngine {
   }
 
   private fireEnemyAttack(enemy: Enemy, aimAngle: number) {
+    playSound(enemy.isBoss ? "bossShot" : "enemyShot");
     const difficulty = this.campaignDifficulty;
     const bulletSpeed = 1 + difficulty * 0.08;
     if (this.mapIndex === 3) {
@@ -938,11 +953,13 @@ export class GameEngine {
 
     enemy.hp -= damage;
     if (enemy.isBoss && respectCooldown) enemy.damageCooldown = 0.2;
+    playSound("impact");
     this.spawnParticles(enemy.x, enemy.y, particleColor, enemy.isBoss ? 4 : 10);
 
     if (enemy.hp > 0) return;
 
     this.enemies.splice(index, 1);
+    playSound(enemy.isBoss ? "bossDefeat" : "explosion");
     if (enemy.isCampaignBoss) {
       this.campaignBossActive = false;
       this.onBossAttackWarning?.(false);
@@ -1103,6 +1120,7 @@ export class GameEngine {
           damage
         });
       }
+      playAttackSound(this.selectedAttack);
       this.player.cooldown = this.selectedAttack === "rapid"
         ? 0.07
         : this.selectedAttack === "heavy"
@@ -1122,21 +1140,25 @@ export class GameEngine {
     if (this.unlockedSkills.has("laser") && this.keys["KeyE"] && this.laserCooldown <= 0) {
       this.laserEnergy = this.LASER_MAX_ENERGY;
       this.laserCooldown = this.LASER_COOLDOWN_TIME;
+      playSound("laser");
       this.spawnParticles(this.player.x, this.player.y, "cyan", 20);
     }
     if (this.unlockedSkills.has("nova") && this.keys["KeyQ"] && this.waveCooldown <= 0) {
       this.shockwaves.push({ x: this.player.x, y: this.player.y, radius: 0, life: 1.5 });
       this.waveCooldown = this.WAVE_COOLDOWN_TIME;
+      playSound("nova");
     }
     if (this.unlockedSkills.has("boost") && this.keys["ShiftLeft"] && !this.speedBoostActive) {
       this.speedBoostActive = true;
       this.speedBoostTime = 3;
+      playSound("boost");
       this.spawnParticles(this.player.x, this.player.y, "#63f7ff", 24);
     }
     if (this.unlockedSkills.has("shield") && this.keys["KeyF"] && this.shieldSkillCooldown <= 0) {
       this.shieldSkillCooldown = 10;
       this.shieldActive = true;
       this.shieldTime = 6;
+      playSound("shield");
       this.spawnParticles(this.player.x, this.player.y, "#7dd3fc", 26);
     }
     if (this.unlockedSkills.has("dash") && this.keys["Space"] && this.dashCooldown <= 0) {
@@ -1144,6 +1166,7 @@ export class GameEngine {
       this.boostActive = true;
       this.boostTime = 1.4;
       this.player.speed = 900;
+      playSound("dash");
       this.spawnParticles(this.player.x, this.player.y, "#facc15", 20);
     }
     if (this.unlockedSkills.has("barrage") && this.keys["KeyX"] && this.barrageCooldown <= 0) {
@@ -1160,6 +1183,7 @@ export class GameEngine {
           damage: 2
         });
       }
+      playSound("barrage");
       this.spawnParticles(this.player.x, this.player.y, "#f472b6", 28);
     }
 
@@ -1431,6 +1455,7 @@ export class GameEngine {
         this.coins.splice(i, 1);
         this.onProgressEvent?.("coin", 1);
         this.coinsCollectedThisRun++;
+        playSound("coin");
         this.spawnParticles(coin.x, coin.y, "#ffd54a", 12);
         continue;
       }
@@ -1444,6 +1469,7 @@ export class GameEngine {
       const dy = this.player.y - p.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < this.player.radius + p.radius) {
+        playSound("powerUp");
         if (p.type === 'shield') { this.shieldActive = true; this.shieldTime = 8; }
         if (p.type === 'speed') { this.boostActive = true; this.boostTime = 5; }
         if (p.type === 'life') { this.health = Math.min(this.MAX_HEALTH, this.health + 35); }
@@ -1502,6 +1528,7 @@ export class GameEngine {
           e.attackWindup = 1.05;
           e.angle = aimAngle;
           e.cooldown = 1.05;
+          playSound("bossWarning");
           this.onBossAttackWarning?.(true);
         } else {
           this.fireEnemyAttack(e, aimAngle);
@@ -1530,6 +1557,7 @@ export class GameEngine {
           continue;
         }
         if (this.shieldActive) {
+          playSound("impact");
           this.enemies.splice(i, 1);
           this.score += 10;
           this.enemiesKilled += 1;

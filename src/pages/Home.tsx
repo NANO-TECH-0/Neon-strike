@@ -17,7 +17,8 @@ import {
   saveProgression,
   type GameProgression
 } from "@/game/progression";
-import { Coins, Trophy, Play, Wrench, UserRound, LogOut } from "lucide-react";
+import { getAudioEnabled, playSound, setAudioEnabled, startMusic } from "@/game/audio";
+import { Coins, Trophy, Play, Wrench, UserRound, LogOut, Volume2, VolumeX } from "lucide-react";
 
 type GameMode = "free" | "levels";
 type GameState = "MENU" | "PLAYING" | "BOSS_INTRO" | "LEVEL_COMPLETE" | "CAMPAIGN_COMPLETE" | "GAME_OVER";
@@ -67,10 +68,12 @@ export default function Home() {
   const [accountUser, setAccountUser] = useState<AccountUser | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [accountError, setAccountError] = useState("");
+  const [soundEnabled, setSoundEnabled] = useState(getAudioEnabled);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || gameState !== "PLAYING") return;
+      playSound("ui");
 
       if (isPaused) {
         engineRef.current?.resume();
@@ -124,6 +127,7 @@ export default function Home() {
         setSelectedCampaignLevel(lastLevel ? levelIndexRef.current : nextSave.levelIndex);
       }
       campaignBossPendingRef.current = false;
+      playSound(lastLevel ? "victory" : "levelComplete");
       setGameState(lastLevel ? "CAMPAIGN_COMPLETE" : "LEVEL_COMPLETE");
     };
     engine.onProgressEvent = (event, amount) => {
@@ -286,6 +290,16 @@ export default function Home() {
     setGameState("MENU");
   };
 
+  const toggleSound = () => {
+    const nextEnabled = !soundEnabled;
+    setSoundEnabled(nextEnabled);
+    setAudioEnabled(nextEnabled);
+    if (nextEnabled) {
+      playSound("ui");
+      if (gameState === "PLAYING" || gameState === "BOSS_INTRO") startMusic();
+    }
+  };
+
   const retryGame = () => {
     startGame(
       gameModeRef.current,
@@ -327,7 +341,30 @@ export default function Home() {
   };
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-background">
+    <div
+      className="relative w-screen h-screen overflow-hidden bg-background"
+      onClick={(event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const interactive = target.closest("button, a");
+        if (interactive && !interactive.hasAttribute("data-sound-toggle")) {
+          playSound("ui");
+        }
+      }}
+    >
+      <button
+        type="button"
+        data-sound-toggle
+        onClick={toggleSound}
+        aria-label={soundEnabled ? "Silenciar sonidos del juego" : "Activar sonidos del juego"}
+        aria-pressed={soundEnabled}
+        title={soundEnabled ? "Silenciar sonidos" : "Activar sonidos"}
+        className="fixed right-4 top-4 z-[80] inline-flex items-center gap-2 rounded-full border border-cyan-300/50 bg-slate-950/85 px-3 py-2 text-xs font-bold text-cyan-100 shadow-[0_0_16px_rgba(34,211,238,0.2)] backdrop-blur transition hover:border-cyan-200 hover:bg-slate-900"
+      >
+        {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+        <span>{soundEnabled ? "SONIDO ON" : "SONIDO OFF"}</span>
+      </button>
+
       {/* Global scanline effect */}
       <div className="scanlines" />
       <div className="vignette" />
