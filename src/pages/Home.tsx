@@ -510,7 +510,7 @@ export default function Home() {
                     disabled={!unlocked}
                     onClick={() => setSelectedCampaignLevel(index)}
                     aria-pressed={selectedCampaignLevel === index}
-                    className={`level-map-card group rounded-xl border p-2 text-left transition disabled:cursor-not-allowed ${
+                    className={`level-map-card group rounded-xl border p-2 text-left transition disabled:cursor-not-allowed disabled:opacity-100 ${
                       selectedCampaignLevel === index
                         ? "border-cyan-300 bg-cyan-500/20 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.2)]"
                         : "border-slate-600 bg-slate-900/80 text-slate-200 hover:border-cyan-300/60"

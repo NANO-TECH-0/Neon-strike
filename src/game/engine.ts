@@ -1678,7 +1678,7 @@ export class GameEngine {
       const column = this.mapIndex % 4;
       const row = Math.floor(this.mapIndex / 4) % 2;
       this.ctx.save();
-      this.ctx.globalAlpha = 0.66;
+      this.ctx.globalAlpha = 1;
       this.ctx.drawImage(
         this.mapBackgroundImage,
         column * sourceWidth + 4,
@@ -1690,7 +1690,7 @@ export class GameEngine {
         this.width,
         this.height
       );
-      this.ctx.fillStyle = "rgba(3, 5, 20, 0.3)";
+      this.ctx.fillStyle = "rgba(3, 5, 20, 0.08)";
       this.ctx.fillRect(0, 0, this.width, this.height);
       this.ctx.restore();
     }
