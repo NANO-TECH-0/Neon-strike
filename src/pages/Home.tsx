@@ -510,16 +510,27 @@ export default function Home() {
                     disabled={!unlocked}
                     onClick={() => setSelectedCampaignLevel(index)}
                     aria-pressed={selectedCampaignLevel === index}
-                    className={`rounded-xl border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-35 ${
+                    className={`level-map-card group rounded-xl border p-2 text-left transition disabled:cursor-not-allowed disabled:opacity-35 ${
                       selectedCampaignLevel === index
                         ? "border-cyan-300 bg-cyan-500/20 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.2)]"
                         : "border-slate-600 bg-slate-900/80 text-slate-200 hover:border-cyan-300/60"
                     }`}
                   >
+                    <span className="level-map-preview mb-2 block h-24 sm:h-28" aria-hidden="true">
+                      <span
+                        className="level-map-art"
+                        style={{
+                          backgroundPosition: `${(index % 4) * 33.333}% ${Math.floor(index / 4) * 100}%`
+                        }}
+                      />
+                      <span className="level-map-shade" />
+                      <span className="level-map-badge">MAPA {index + 1}</span>
+                      <span className="level-map-caption">{level.title}</span>
+                    </span>
                     <span className="block text-[10px] font-bold tracking-wider">
                       NIVEL {index + 1}{isSavedLevel ? " · TU AVANCE" : ""}
                     </span>
-                    <span className="mt-1 block text-xs">{level.title}</span>
+                    <span className="mt-1 block min-h-8 text-xs">{level.title}</span>
                   </button>
                 );
               })}

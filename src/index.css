@@ -196,12 +196,81 @@
   animation: boss-warning-flash 180ms steps(2, end) infinite;
 }
 
+@keyframes map-preview-pan {
+  from { transform: scale(1.08) translate3d(-1%, 0, 0); }
+  to { transform: scale(1.14) translate3d(1%, -1%, 0); }
+}
+
+.level-map-card {
+  overflow: hidden;
+}
+
+.level-map-preview {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 0.6rem;
+  background: #080b1b;
+}
+
+.level-map-art {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background-image: url("/assets/mapas-neon.png");
+  background-repeat: no-repeat;
+  background-size: 400% 200%;
+  animation: map-preview-pan 8s ease-in-out infinite alternate;
+  transition: filter 300ms ease;
+}
+
+.level-map-card:hover .level-map-art,
+.level-map-card:focus-visible .level-map-art {
+  filter: brightness(1.25) saturate(1.15);
+  animation-duration: 4s;
+}
+
+.level-map-shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.08), rgba(2, 6, 23, 0.2) 35%, rgba(2, 6, 23, 0.9));
+}
+
+.level-map-badge,
+.level-map-caption {
+  position: absolute;
+  left: 0.55rem;
+  right: 0.55rem;
+  text-shadow: 0 1px 5px #020617;
+}
+
+.level-map-badge {
+  top: 0.5rem;
+  color: #a5f3fc;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.level-map-caption {
+  bottom: 0.5rem;
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .game-over-backdrop,
   .game-over-zoom,
   .level-complete-card,
   .level-complete-rays,
-  .level-complete-progress {
+  .level-complete-progress,
+  .level-map-art {
     animation-duration: 1ms;
   }
   .boss-intro-card,

@@ -2175,7 +2175,7 @@ export class GameEngine {
         this.ctx.fillStyle = "#ff8d35";
         this.ctx.beginPath();
         this.ctx.moveTo(-3, 18);
-        this.ctx.lineTo(0, 28 + Math.random() * 8);
+        this.ctx.lineTo(0, 28 + (Math.sin(performance.now() / 70) + 1) * 4);
         this.ctx.lineTo(3, 18);
         this.ctx.closePath();
         this.ctx.fill();
