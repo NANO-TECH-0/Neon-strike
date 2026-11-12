@@ -176,6 +176,17 @@ const MAP_BOSS_COLORS: Record<string, string>[] = [
 
 export const MAP_NAMES = ["COSMOS", "OCEANO", "BOSQUE", "VOLCAN", "GLACIAR", "METROPOLIS", "CASCADA", "NUCLEO"];
 
+const MAP_SCENE_CROPS = [
+  { left: 8, right: 8, top: 102, bottom: 8 },
+  { left: 86, right: 8, top: 55, bottom: 76 },
+  { left: 8, right: 8, top: 105, bottom: 8 },
+  { left: 8, right: 8, top: 102, bottom: 8 },
+  { left: 8, right: 8, top: 76, bottom: 8 },
+  { left: 8, right: 8, top: 96, bottom: 8 },
+  { left: 8, right: 8, top: 76, bottom: 8 },
+  { left: 8, right: 8, top: 86, bottom: 8 }
+];
+
 const PLAYER_SPRITE = [
   "...............K...............",
   "..............KOK..............",
@@ -1677,20 +1688,37 @@ export class GameEngine {
       const sourceHeight = this.mapBackgroundImage.naturalHeight / 2;
       const column = this.mapIndex % 4;
       const row = Math.floor(this.mapIndex / 4) % 2;
+      const crop = MAP_SCENE_CROPS[this.mapIndex];
+      const cropWidth = sourceWidth - crop.left - crop.right;
+      const cropHeight = sourceHeight - crop.top - crop.bottom;
+      const sceneAspect = cropWidth / cropHeight;
+      const viewportAspect = this.width / this.height;
+      const coverWidth = sceneAspect > viewportAspect
+        ? this.height * sceneAspect
+        : this.width;
+      const coverHeight = sceneAspect > viewportAspect
+        ? this.height
+        : this.width / sceneAspect;
+      const sceneTime = performance.now();
+      const driftX = Math.sin(sceneTime * 0.00007) * 12;
+      const driftY = Math.cos(sceneTime * 0.00005) * 8;
       this.ctx.save();
-      this.ctx.globalAlpha = 1;
+      this.ctx.beginPath();
+      this.ctx.rect(0, 0, this.width, this.height);
+      this.ctx.clip();
+      this.ctx.globalAlpha = 0.96;
       this.ctx.drawImage(
         this.mapBackgroundImage,
-        column * sourceWidth + 4,
-        row * sourceHeight + 4,
-        sourceWidth - 8,
-        sourceHeight - 8,
-        0,
-        0,
-        this.width,
-        this.height
+        column * sourceWidth + crop.left,
+        row * sourceHeight + crop.top,
+        cropWidth,
+        cropHeight,
+        (this.width - coverWidth) / 2 + driftX,
+        (this.height - coverHeight) / 2 + driftY,
+        coverWidth,
+        coverHeight
       );
-      this.ctx.fillStyle = "rgba(3, 5, 20, 0.08)";
+      this.ctx.fillStyle = "rgba(3, 5, 20, 0.1)";
       this.ctx.fillRect(0, 0, this.width, this.height);
       this.ctx.restore();
     }
