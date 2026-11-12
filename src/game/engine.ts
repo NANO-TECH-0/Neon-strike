@@ -405,6 +405,7 @@ interface PortalTransition {
 export class GameEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  private mapBackgroundImage: HTMLImageElement;
   private animationFrameId: number = 0;
   
   // Game State
@@ -510,6 +511,13 @@ export class GameEngine {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Could not get 2d context");
     this.ctx = ctx;
+
+    this.mapBackgroundImage = new Image();
+    this.mapBackgroundImage.onload = () => this.draw();
+    this.mapBackgroundImage.onerror = () => {
+      console.error("No se pudo cargar la imagen de los mapas.");
+    };
+    this.mapBackgroundImage.src = "/assets/mapas-neon.png";
 
     this.player = {
       x: 0, y: 0, vx: 0, vy: 0,
@@ -1663,6 +1671,29 @@ export class GameEngine {
     background.addColorStop(1, zoneColors[this.mapIndex][1]);
     this.ctx.fillStyle = background;
     this.ctx.fillRect(0, 0, this.width, this.height);
+
+    if (this.mapBackgroundImage.complete && this.mapBackgroundImage.naturalWidth > 0) {
+      const sourceWidth = this.mapBackgroundImage.naturalWidth / 4;
+      const sourceHeight = this.mapBackgroundImage.naturalHeight / 2;
+      const column = this.mapIndex % 4;
+      const row = Math.floor(this.mapIndex / 4) % 2;
+      this.ctx.save();
+      this.ctx.globalAlpha = 0.66;
+      this.ctx.drawImage(
+        this.mapBackgroundImage,
+        column * sourceWidth + 4,
+        row * sourceHeight + 4,
+        sourceWidth - 8,
+        sourceHeight - 8,
+        0,
+        0,
+        this.width,
+        this.height
+      );
+      this.ctx.fillStyle = "rgba(3, 5, 20, 0.3)";
+      this.ctx.fillRect(0, 0, this.width, this.height);
+      this.ctx.restore();
+    }
 
     const deathProgress = this.deathAnimationTime === null
       ? 0

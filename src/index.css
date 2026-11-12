@@ -216,7 +216,7 @@
 .level-map-art {
   position: absolute;
   inset: 0;
-  z-index: -2;
+  z-index: 0;
   background-image: url("/assets/mapas-neon.png");
   background-repeat: no-repeat;
   background-size: 400% 200%;
@@ -233,7 +233,7 @@
 .level-map-shade {
   position: absolute;
   inset: 0;
-  z-index: -1;
+  z-index: 1;
   background: linear-gradient(180deg, rgba(2, 6, 23, 0.08), rgba(2, 6, 23, 0.2) 35%, rgba(2, 6, 23, 0.9));
 }
 
@@ -242,6 +242,7 @@
   position: absolute;
   left: 0.55rem;
   right: 0.55rem;
+  z-index: 2;
   text-shadow: 0 1px 5px #020617;
 }
 
